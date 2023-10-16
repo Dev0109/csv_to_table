@@ -8,7 +8,9 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
     $html .= '<thead>';
     
     if (($handle = fopen($csvFile, "r")) !== false) {
-        for ($i=0; $i<19; $i++) {
+        $data = fgetcsv($handle, 1000, ",");
+        rewind($handle);
+        for ($i=0; $i<count($data); $i++) {
             $html .= '<tr>';
             $count = 0;
             while (($data = fgetcsv($handle, 1000, ",")) !== false) {
