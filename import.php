@@ -6,6 +6,11 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
 
     $html = '<table border="1">';
     $html .= '<thead>';
+    $options = array(
+        "Ignore", "NMI", "Date", "Interval Length", "Period", "EndTime", "Meter Serial",
+        "Kwh", "Generated Kwh", "Net KWh", "Kvarh", "Generated Kvarh", "Net Kvarh", 
+        "KVA", "KW", "Daytype", "TimeSlice", "Peak", "Off Peak", "Shoulder"
+    );
     
     if (($handle = fopen($csvFile, "r")) !== false) {
         $data = fgetcsv($handle, 1000, ",");
@@ -22,6 +27,13 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
                 $count++;
 
                 if($count == 5) {
+                    $html .= '<td>';
+                    $html .= '<select id="dropdown" name="selected_option" style="border:none">';
+                    foreach ($options as $option) {
+                        $html .= '<option value="' . $option . '">' . $option . '</option>';
+                    }
+                    $html .= '</select>';
+                    $html .= '</td>';
                     break;
                 }
             }
