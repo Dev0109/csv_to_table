@@ -15,7 +15,7 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
             $count = 0;
             while (($data = fgetcsv($handle, 1000, ",")) !== false) {
                 
-                if ($count < 5) {
+                if ($count < 4) {
                     $html .= '<td>' . $data[$i] . '</td>';
                 }
 
