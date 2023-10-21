@@ -1,59 +1,14 @@
 <?php
-if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK) {
-    $file = $_FILES['csv_file']['tmp_name'];
-    $file_name = $_FILES['csv_file']['name'];
-    $csvFile = $file;
-
-    $count = 0;
-
-    $html = '<table border="1">';
-    $html .= '<thead>';
-    $options = array(
-        "Ignore", "NMI", "Date", "Interval Length", "Period", "EndTime", "Meter Serial",
-        "Kwh", "Generated Kwh", "Net KWh", "Kvarh", "Generated Kvarh", "Net Kvarh", 
-        "KVA", "KW", "Daytype", "TimeSlice", "Peak", "Off Peak", "Shoulder"
-    );
-    
-    if (($handle = fopen($csvFile, "r")) !== false) {
-        $data = fgetcsv($handle, 1000, ",");
-        rewind($handle);
-        for ($i=0; $i<count($data); $i++) {
-            $html .= '<tr>';
-            $count = 0;
-            while (($data = fgetcsv($handle, 1000, ",")) !== false) {
-                
-                if ($count < 4) {
-                    $html .= '<td>' . $data[$i] . '</td>';
-                }
-
-                $count++;
-
-                if($count == 5) {
-                    $html .= '<td>';
-                    $html .= '<select id="dropdown" name="selected_option" style="border:none">';
-                    foreach ($options as $option) {
-                        $html .= '<option value="' . $option . '">' . $option . '</option>';
-                    }
-                    $html .= '</select>';
-                    $html .= '</td>';
-                    break;
-                }
-            }
-            rewind($handle);
-            $html .= '</tr>';
-        }
-        if (isset($handle)) {
-            fclose($handle);
-        }
-    }
-    
-    $html .= '</table>';
-    echo $html;
-
-    // ... CSV processing code (as in your original code) ...
-
     // Check for form submission
     if (isset($_POST['submit'])) {
+
+        $file_name = $_POST['csv_name'];
+        $checkbox =isset($_POST['checkbox_value']) ? $_POST['checkbox_value'] : "";
+        // print_r($file_name);
+        // Retrieve the table data from the $_POST variable
+        $tableData = $_POST['myTableData'];
+        $tableArray = json_decode($tableData, true);
+        print_r($tableArray);
 
         // Database connection settings
         $hostname = "localhost";
@@ -79,6 +34,7 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
             $site_id = "";
             $dnsp_id = "";
             $retailer_id = "";
+            $batchLatestID = "";
 
             // Insert data into the database
             $sql_site = "INSERT INTO `$table_name` (site_name) VALUES ('$site_name')";
@@ -98,7 +54,6 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
                 if ($result->num_rows > 0) {
                     $row = $result->fetch_assoc();
                     $site_id = $row['id'];
-                    echo "ID for data value '$site_name' is $site_id";
                 } else {
                     echo "No matching data value found.";
                 }
@@ -115,7 +70,6 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
                 if ($result->num_rows > 0) {
                     $row = $result->fetch_assoc();
                     $dnsp_id = $row['id'];
-                    echo "ID for data value '$dnsp' is $dnsp_id";
                 } else {
                     echo "No matching data value found.";
                 }
@@ -132,7 +86,6 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
                 if ($result->num_rows > 0) {
                     $row = $result->fetch_assoc();
                     $retailer_id = $row['id'];
-                    echo "ID for data value '$retailer' is $retailer_id";
                 } else {
                     echo "No matching data value found.";
                 }
@@ -144,7 +97,7 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
         $table_name = "p004_nmi_batch";
 
             // Insert data into the database
-        $sql_site = "INSERT INTO `$table_name` (site_id, dnsp_id, retailer_id, nmi_csv, batch_description) VALUES ('$site_id', '$dnsp_id', '$retailer_id', '$file_name', '$description')";
+        $sql_site = "INSERT INTO `$table_name` (p004_Site_ID, p003_DNSP_ID, p004_Retailer_ID, NMI_CSV, Batch_Description) VALUES ('$site_id', '$dnsp_id', '$retailer_id', '$file_name', '$description')";
 
         if ($mysqli->query($sql_site) === TRUE) {
             echo "Record inserted successfully";
@@ -152,10 +105,86 @@ if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK)
             echo "Error: " . $sql_site . "<br>" . $mysqli->error;
         }
 
+        $sql_batch = "SELECT MAX(id) AS latest_id FROM p004_nmi_batch";
+        $result = $mysqli->query($sql_batch);
+
+        if ($result) {
+            // Check if any rows were returned
+            if ($result->num_rows > 0) {
+                $row = $result->fetch_assoc();
+                $batchLatestID = $row['latest_id'];
+            } else {
+                echo "No rows found in the table.";
+            }
+
+            $result->close();
+        } else {
+            echo "Query failed: " . $mysqli->error;
+        }
+
+        $table_name = "p004_nmi_detail";
+        insertNMIDetail($mysqli, $table_name, $tableArray, $batchLatestID, $checkbox);
+
         // Close the database connection
         $mysqli->close();
     } else {
         echo "Form not submitted.";
     }
-}
+
+    function insertNMIDetail ($mysqli, $table_name, $tableArray, $batchLatestID, $checkbox) {
+       
+        $nmiDetails = array();
+        print_r($tableArray);
+        $columns=count($tableArray[0]) - 1;
+        $rows_ = array_filter($tableArray, function($val) {
+            return $val[count($val) -1 ] != 'Ignore';
+        });
+        // print_r($rows_);
+        $data = [];
+        $columnsarray = [];
+        foreach ($rows_ as $k => $r) {
+            $key = $r[count($r)-1];
+            array_push($columnsarray, $key);
+            // $data[$k] = [];
+            for($i=0;$i<$columns;$i++) {
+                if(!isset($data[$i]))
+                    $data[$i]=[];
+                $data[$i][$key ]= $r[$i];
+            }
+        }
+        print_r($columnsarray);
+
+        for($i = 0;$i<count($data);$i++) {
+            if ($checkbox == 'on' && $i == 0) {
+                print_R("continue");
+                continue;
+            }  
+            $values = [];
+
+            foreach($columnsarray as $key) {
+                if (isset($data[$i][$key])){
+                    array_push($values, $data[$i][$key]);
+                }
+                else
+                    array_push($values, '');
+            }
+            
+            $values = '"'.implode('","', $values).'"';
+            $headers = '`'.implode('`,`', str_replace(' ', '_', $columnsarray)).'`';
+            $sql = "INSERT INTO $table_name($headers, p004_nmi_Batch_ID) VALUES ($values, $batchLatestID)";
+            if ($mysqli->query($sql) === TRUE) {
+                echo "Record inserted successfully";
+            } else {
+                echo "Error: " . $sql . "<br>" . $mysqli->error;
+            }
+
+        }
+
+        /**Save data */
+
+
+        return;
+        
+        print_r($data);
+    }
 ?>

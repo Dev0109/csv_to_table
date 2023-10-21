@@ -5,11 +5,67 @@
 </head>
 <body>
     <h1>NMI Batch Loader</h1>
+    <form action="" method="post" enctype="multipart/form-data" style="margin-bottom: 10px">
+        <h1>Import the CSV File</h1>
+        <input type="file" id="fileInput" name="csv_file" accept=".csv">
+        <input type="submit" name="submit" value="Upload CSV">
+    </form>
     <form action="import.php" method="post" enctype="multipart/form-data">
-        <div>
-            <h1>CSV File Import</h1>
-            <input type="file" name="csv_file" accept=".csv" required>
-        </div>
+        <?php if (isset($_FILES['csv_file']) && $_FILES['csv_file']['error'] == UPLOAD_ERR_OK) {
+            $file = $_FILES['csv_file']['tmp_name'];
+            $file_name = $_FILES['csv_file']['name'];
+            $csvFile = $file;
+
+            $count = 0;
+
+            $html = '<input type="hidden"  name="csv_name" id="csv_name" value="' . $file_name . '">';
+            $html .= '<input type="checkbox" name="checkbox_value" checked style="margin-top: 10px; margin-bottom: 10px">';
+            $html .= '<table border="1">';
+            $html .= '<thead>';
+            $options = array(
+                "Ignore", "NMI", "Date", "Interval Length", "Period", "EndTime", "Meter Serial",
+                "Kwh", "Generated Kwh", "Net KWh", "Kvarh", "Generated Kvarh", "Net Kvarh", 
+                "KVA", "KW", "Daytype", "TimeSlice", "Peak", "Off Peak", "Shoulder"
+            );
+            
+            if (($handle = fopen($csvFile, "r")) !== false) {
+                $data_1 = fgetcsv($handle, 1000, ",");
+                rewind($handle);
+                for ($i=0; $i<count($data_1); $i++) {
+                    $html .= '<tr">';
+                    $count = 0;
+                    while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+                        
+                        if ($count < 4) {
+                            $html .= '<td>' . htmlspecialchars($data[$i]) . '</td>';
+                        }
+
+                        if ($count >= 4) {
+                            $html .= '<td style="display: none">' . htmlspecialchars($data[$i]) . '</td>';
+                        }
+
+                        $count++;
+                    }
+
+                    $html .= '<td>';
+                    $html .= '<select id="dropdown' . $i .'" name="selected_option[]" style="border:none" onChange="loadCsvData()">';
+                    foreach ($options as $option) {
+                        $html .= '<option value="' . $option . '">' . $option . '</option>';
+                    }
+                    $html .= '</select>';
+                    $html .= '</td>';
+
+                    rewind($handle);
+                    $html .= '</tr>';
+                }
+                if (isset($handle)) {
+                    fclose($handle);
+                }
+            }
+            $html .= '<input type="hidden" name="myTableData" id="myTableData">';
+            $html .= '</table>';
+            echo $html;
+        } ?>
         <div>
             <h1>Enter the Site Name</h1>
             <input type="text" name="site_name" required>
@@ -90,5 +146,32 @@
         </div>       
         <input type="submit" name="submit" value="Submit" style="margin-top: 10px">
     </form>
+    <script>
+        function loadCsvData() {
+            const table = document.querySelector('table');
+            const rows = table.rows;
+            const data = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].cells;
+                const rowData = [];
+
+                for (let j = 0; j < cells.length; j++) {
+                    if (j == cells.length - 1) {
+                        var doc = new DOMParser().parseFromString(cells[j].innerHTML, "text/xml");
+                        var select = document.getElementById(`dropdown${i}`).value;
+                        rowData.push(select);
+                    } else {
+                        rowData.push(cells[j].innerText);
+                    }
+                }
+
+                data.push(rowData);
+            }
+
+            const json = JSON.stringify(data);
+            document.getElementById('myTableData').value = json;
+        }
+    </script>
 </body>
 </html>
