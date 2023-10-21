@@ -5,44 +5,9 @@
 </head>
 <body>
     <h1>NMI Batch Loader</h1>
-    <form action='' method="post">
+    <form action='batchList.php' method="post">
         <button type="submit" name="fetchData">View Batches</button>
     </form>
-    <?php
-        if(isset($_POST['fetchData'])) {
-            $hostname = "localhost";
-            $username = "root";
-            $password = "";
-            $database = "aca1_db1";
-
-            // Create a connection
-            $mysqli = new mysqli($hostname, $username, $password, $database);
-
-            if ($mysqli->connect_error) {
-                die("Connection failed: " . $mysqli->connect_error);
-            }
-        
-            $query_batch = "SELECT * FROM p004_nmi_batch";
-            $result_batch = $mysqli->query($query_batch);
-
-            if ($result_batch) {
-                echo "<table class='batchInfo' border='1' style='margin-top: 10px'>
-                <tr>
-                    <th>ID</th>
-                </tr>";
-
-                while ($row_batch = $result_batch->fetch_assoc()) {
-                    echo "<tr>";
-                    echo "<td class='clickable' data-id='" . $row_batch['id'] . "' onclick='batchInfo(" . $row_batch['id'] . ")'>" . $row_batch['id'] . "</td>";
-                    echo "</tr>";
-                }
-
-                echo "</table>";
-
-                $mysqli->close();
-            }
-        }
-    ?>
     <form action="" method="post" enctype="multipart/form-data" style="margin-bottom: 10px">
         <h1>Import the CSV File</h1>
         <input type="file" id="fileInput" name="csv_file" accept=".csv">
@@ -184,8 +149,6 @@
         </div>       
         <input type="submit" name="submit" value="Submit" style="margin-top: 10px">
     </form>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <script>
         function loadCsvData() {
@@ -215,7 +178,7 @@
         }
 
         function batchInfo(id) {
-            window.location.href = "batchlist.php?id=" + id;
+            window.location.href = "batchInfo.php?id=" + id;
         }
     </script>
 </body>
